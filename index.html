@@ -71,14 +71,17 @@ tr.brow { display:none; }
   button { padding:9px 14px; }
   input.rate { padding:8px; font-size:16px; }
   .card { padding:12px; border-radius:10px; }
-  #chart { min-height:280px; }
-  #chart svg { height:280px; }
+  #chart { min-height:300px; }
+  #chart svg { height:300px; }
   .hide-m { display:none; }
   tr.brow { display:table-row; }
   tr.brow td { white-space:normal; text-align:left; color:var(--muted); font-size:12px; padding-top:0; }
   tr.hasb td { border-bottom:0; padding-bottom:2px; }
   td, th { padding:7px 6px; }
   td.wrapc { min-width:120px; }
+  #sig td.l { white-space:normal; }
+  #sig td.wrapc { min-width:0; }
+  .chip { white-space:nowrap; }
 }
 </style>
 </head>
@@ -314,19 +317,28 @@ function detail(){
 function chart(){
   const s=S.sel,an=S.an[s],lv=S.lv[s],el=$('chart'),r=rate(s);
   if(!an||!lv||!r){el.textContent='';return}
-  const W=Math.max(280,el.clientWidth),nar=W<560,H=nar?280:340,ml=nar?46:64,mr=nar?10:150,mt=10,mb=26;
+  const W=Math.max(280,el.clientWidth),nar=W<560,H=nar?300:340,ml=nar?44:64,mr=nar?92:150,mt=12,mb=26,fs=nar?11:12;
   const pts=an.closes.map(p=>({t:p.t,v:p.c*r}));const live=S.bpx[s]*r;pts[pts.length-1].v=live;
-  const lvs=[['2차 매도',lv.t2,'var(--ok)'],['1차 매도',lv.t1,'var(--ok)'],['추천 매수',lv.buy,'var(--fg)'],['1차 손절',lv.s1,'var(--bad)'],['2차 손절',lv.s2,'var(--bad)']].map(x=>({lab:x[0],v:tick(x[1]*r),col:x[2]}));
-  let lo=Math.min(...pts.map(p=>p.v),...lvs.map(l=>l.v)),hi=Math.max(...pts.map(p=>p.v),...lvs.map(l=>l.v));const pad=(hi-lo)*0.05;lo-=pad;hi+=pad;
-  const x=(i)=>ml+(W-ml-mr)*i/(pts.length-1),y=(v)=>mt+(H-mt-mb)*(1-(v-lo)/(hi-lo));
-  const kf=(v)=>v>=1e8?parseFloat((v/1e8).toFixed(2))+'억':v>=1e4?Math.round(v/1e4).toLocaleString('ko-KR')+'만':won(v);
+  const kf=(v)=>v>=1e8?parseFloat((v/1e8).toFixed(2))+'억':v>=1e5?Math.round(v/1e4).toLocaleString('ko-KR')+'만':v>=1e4?parseFloat((v/1e4).toFixed(1))+'만':won(v);
+  const kl=(v)=>v>=1e8?parseFloat((v/1e8).toFixed(3))+'억':kf(v);
+  const lvs=[['2차 매도','매도2',lv.t2,'var(--ok)'],['1차 매도','매도1',lv.t1,'var(--ok)'],['추천 매수','매수',lv.buy,'var(--fg)'],['1차 손절','손절1',lv.s1,'var(--bad)'],['2차 손절','손절2',lv.s2,'var(--bad)']]
+    .map(x=>({lab:x[0],sh:x[1],v:tick(x[2]*r),col:x[3],main:x[0]==='추천 매수'}));
+  let lo=Math.min(...pts.map(p=>p.v),...lvs.map(l=>l.v)),hi=Math.max(...pts.map(p=>p.v),...lvs.map(l=>l.v));const pad=(hi-lo)*0.06;lo-=pad;hi+=pad;
+  const x1=W-mr,x=(i)=>ml+(x1-ml)*i/(pts.length-1),y=(v)=>mt+(H-mt-mb)*(1-(v-lo)/(hi-lo));
   let h='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+s+' 최근 120일 종가와 가격대">';
-  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,yy=y(v);h+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+yy+'" y2="'+yy+'" stroke="#222a33"/><text x="'+(ml-8)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="#8b96a5">'+kf(v)+'</text>'}
-  (nar?[0,60,119]:[0,30,60,90,119]).forEach(i=>{if(pts[i]){const d=new Date(pts[i].t);h+='<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#8b96a5">'+(d.getUTCMonth()+1)+'/'+d.getUTCDate()+'</text>'}});
-  const pos=lvs.map(l=>({l,y:y(l.v)})).sort((a,b)=>a.y-b.y);for(let i=1;i<pos.length;i++)if(pos[i].y-pos[i-1].y<14)pos[i].y=pos[i-1].y+14;
-  pos.forEach(p=>{const yy=y(p.l.v);h+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+yy+'" y2="'+yy+'" stroke="'+p.l.col+'" stroke-width="'+(p.l.lab==='추천 매수'?1.5:1)+'"'+(p.l.lab==='추천 매수'?'':' stroke-dasharray="4 3"')+'/>'+(nar?'<text x="'+(ml+4)+'" y="'+(p.y-3)+'" font-size="11" fill="'+p.l.col+'" stroke="#171b21" stroke-width="3" paint-order="stroke">'+p.l.lab+' '+won(p.l.v)+'</text>':'<text x="'+(W-mr+8)+'" y="'+(p.y+4)+'" font-size="12" fill="'+p.l.col+'">'+p.l.lab+' '+won(p.l.v)+'</text>')});
-  h+='<path fill="none" stroke="#6aa8ff" stroke-width="2" d="'+pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join('')+'"/>';
-  h+='<circle cx="'+x(pts.length-1)+'" cy="'+y(live)+'" r="4" fill="#6aa8ff"/></svg>';
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,yy=y(v);h+='<line x1="'+ml+'" x2="'+x1+'" y1="'+yy+'" y2="'+yy+'" stroke="#222a33"/><text x="'+(ml-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10.5" fill="#8b96a5">'+kf(v)+'</text>'}
+  (nar?[0,60,119]:[0,30,60,90,119]).forEach((i,j,arr)=>{if(pts[i]){const d=new Date(pts[i].t);h+='<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="'+(j===0?'start':j===arr.length-1?'end':'middle')+'" font-size="10.5" fill="#8b96a5">'+(d.getUTCMonth()+1)+'/'+d.getUTCDate()+'</text>'}});
+  lvs.forEach(l=>{const yy=y(l.v);h+='<line x1="'+ml+'" x2="'+x1+'" y1="'+yy+'" y2="'+yy+'" stroke="'+l.col+'" stroke-opacity="'+(l.main?1:0.75)+'" stroke-width="'+(l.main?1.5:1)+'"'+(l.main?'':' stroke-dasharray="4 3"')+'/>'});
+  h+='<path fill="none" stroke="#6aa8ff" stroke-width="2" stroke-linejoin="round" d="'+pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join('')+'"/>';
+  h+='<circle cx="'+x1+'" cy="'+y(live)+'" r="4" fill="#6aa8ff" stroke="#171b21" stroke-width="1.5"/>';
+  // labels in the right gutter, kept apart and inside the chart
+  const gap=fs+3,top=mt+4,bot=H-mb-2;
+  const tags=lvs.map(l=>({y0:y(l.v),col:l.col,txt:(nar?l.sh:l.lab)+' '+(nar?kl(l.v):won(l.v)),bold:l.main})).concat([{y0:y(live),col:'#6aa8ff',txt:'현재 '+(nar?kl(live):won(tick(live))),bold:true}]).sort((a,b)=>a.y0-b.y0);
+  tags.forEach((t,i)=>{t.y=Math.max(t.y0,i?tags[i-1].y+gap:top)});
+  for(let i=tags.length-1;i>=0;i--){const max=i===tags.length-1?bot:tags[i+1].y-gap;if(t_over(tags[i],max))tags[i].y=max}
+  function t_over(t,max){return t.y>max}
+  tags.forEach(t=>{h+='<path fill="none" stroke="'+t.col+'" stroke-opacity="0.6" d="M'+x1+' '+t.y0.toFixed(1)+'L'+(x1+6)+' '+t.y.toFixed(1)+'"/><text x="'+(x1+9)+'" y="'+(t.y+fs/3).toFixed(1)+'" font-size="'+fs+'" font-weight="'+(t.bold?600:400)+'" fill="'+t.col+'">'+t.txt+'</text>'});
+  h+='</svg>';
   el.innerHTML=h;
 }
 $('rows').addEventListener('click',(ev)=>{const tr=ev.target.closest('tr.row');if(tr){S.sel=tr.dataset.s;render(true)}});
