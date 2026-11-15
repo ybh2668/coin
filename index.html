@@ -83,6 +83,12 @@ tr.row { cursor:pointer; } tr.row:hover td { background:var(--panel2); } tr.sel 
 #chart svg { display:block; width:100%; height:340px; }
 .small { font-size:12px; color:var(--muted); margin-top:8px; }
 details { color:var(--muted); font-size:12px; } details summary { cursor:pointer; color:var(--fg); font-size:14px; }
+.frm { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13px; }
+.frm label { display:flex; align-items:center; gap:6px; color:var(--muted); }
+.frm input.sm { width:56px; text-align:right; }
+.box table td, .box table th { padding:7px 5px; }
+.mst { display:block; font-size:11px; color:var(--muted); } .mst.up { color:var(--warn); }
+.mlv span.muted { color:var(--muted); text-decoration:line-through; }
 @media (max-width:1040px) { .desk { display:none; } .cards { display:block; } .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr)); gap:10px; } .mcard { margin-bottom:0; } }
 @media (max-width:760px) {
   body { font-size:15px; } h1 { font-size:19px; }
@@ -106,6 +112,7 @@ details { color:var(--muted); font-size:12px; } details summary { cursor:pointer
     <span id="manual" hidden>업비트 연결이 안 되면 환율 직접 입력: <input class="rate" id="rate-in" type="number" value="1368" min="500" max="5000"> 원</span>
   </div>
   <div class="bar">
+    <span class="seg" id="mode"><button type="button" data-m="S" class="on">손절 방식</button><button type="button" data-m="M">물타기 방식</button></span>
     <span class="seg" id="tf"><button type="button" data-tf="D" class="on">일봉 (스윙)</button><button type="button" data-tf="H">4시간 (단기)</button></span>
     <button id="btn-recalc" type="button">가격대 다시 계산</button>
     <span id="t-calc"></span>
@@ -117,7 +124,7 @@ details { color:var(--muted); font-size:12px; } details summary { cursor:pointer
     <table class="main">
       <thead><tr>
         <th class="l">종목</th><th>현재가 · 24시간</th><th class="l">방향성</th><th class="l">플랜</th>
-        <th>매수가</th><th>1차 손절</th><th>1차 매도</th><th>2차 매도</th><th class="l">지금 할 일</th>
+        <th id="h1">매수가</th><th id="h2">1차 손절</th><th id="h3">1차 매도</th><th id="h4">2차 매도</th><th class="l">지금 할 일</th>
       </tr></thead>
       <tbody id="rows"><tr><td class="l muted" colspan="9">데이터를 불러오는 중입니다…</td></tr></tbody>
     </table>
@@ -138,12 +145,13 @@ details { color:var(--muted); font-size:12px; } details summary { cursor:pointer
   <div class="card">
     <h2 id="p-title">플랜 A · B · C</h2>
     <div class="grid3" id="d-plans"></div>
-    <div class="small"><div>4시간봉이 1차 손절가 아래에서 마감하면 그 플랜은 무효, 다음 플랜으로 넘어갑니다.</div><div>무너진 매수가를 4시간봉 종가로 다시 회복하면 그 플랜이 되살아납니다.</div></div>
+    <div class="small" id="p-note-S"><div>4시간봉이 1차 손절가 아래에서 마감하면 그 플랜은 무효, 다음 플랜으로 넘어갑니다.</div><div>무너진 매수가를 4시간봉 종가로 다시 회복하면 그 플랜이 되살아납니다.</div><div>매수가를 안 주고 저항을 돌파하면 돌파 되돌림 매수(추격)로 바뀝니다.</div></div>
+    <div class="small" id="p-note-M" hidden><div>물타기는 안 팔고 아래에서 더 사는 방식이라, 하락이 길어지면 손실이 커집니다.</div><div>최종 손절선은 꼭 지키는 걸 전제로 한 계획입니다.</div></div>
   </div>
 
   <details>
     <summary>계산 방법과 한계</summary>
-    <p>바이낸스 현물 일봉·4시간봉·주봉(각 400개)을 씁니다. 방향성은 일봉과 4시간봉 각각에서 이동평균, RSI, MACD, 다이버전스, 캔들 패턴(도지·망치형·장악형), 임펄스(장대봉), 20선 터치 횟수와 이탈·돌파, 삼각수렴·쐐기, 볼린저 수렴, 파동 위치를 점검해 해당되는 것만 표시하고 점수를 합쳐 판정합니다.</p>
+    <p>바이낸스 현물 일봉·4시간봉·주봉(각 400개)을 씁니다. 거래량 분석(투매 후 흡수, 스프링, 매도 흡수, OBV 매집·분산, 시장가 매수·매도 비율, 매도세 소진, 고점 대량 매도)은 바이낸스 거래량으로 큰손의 움직임을 추정한 것이라, 실제 누가 샀는지는 알 수 없습니다.</p><p>방향성은 일봉과 4시간봉 각각에서 이동평균, RSI, MACD, 다이버전스, 캔들 패턴(도지·망치형·장악형), 임펄스(장대봉), 20선 터치 횟수와 이탈·돌파, 삼각수렴·쐐기, 볼린저 수렴, 파동 위치를 점검해 해당되는 것만 표시하고 점수를 합쳐 판정합니다.</p>
     <p>가격대는 이동평균, 볼린저밴드, 피보나치, 스윙 고·저점, 피봇, 매물대, 일목균형표에서 나온 지지·저항을 0.45 ATR 간격으로 묶어, 여러 방식이 겹치는 곳을 고릅니다. 플랜 B·C는 앞 플랜의 손절가 아래에 있는 다음 지지대입니다.</p>
     <p>파동(12345·ABC)은 사람마다 다르게 세는 주관적인 기법이라 자동 추정은 거칠 수 있습니다. 패턴 판정도 규칙 기반이라 실제 차트를 눈으로 본 판단과 다를 수 있습니다. 시세는 실시간, 지표는 5분마다 갱신됩니다.</p>
   </details>
@@ -257,6 +265,36 @@ function view(b,px){
       else if(k===5)add(W,'상승 5파 진행(막바지일 수 있음): 하락 다이버전스가 함께 나오면 조정 신호',0.5);
       else add(W,'상승 5파 이후 ABC 조정이 나올 수 있는 구간',-0.5)};
     if(iH>=0&&iL>=0&&Z.length>=2){if(iH>iL){if(iH===last)up(iL);else down(iH)}else{if(iL===last)down(iH);else up(iL)}}}
+  // 10. volume: smart-money accumulation and bottom signals (Binance volume)
+  {const V='거래량',vavg=(i,k=20)=>{let s=0,c2=0;for(let j=Math.max(0,i-k);j<i;j++){s+=b[j].v;c2++}return c2?s/c2:0};
+    const prevDown=(i,k=10)=>(c[i-1]-c[Math.max(0,i-k)])/atr;
+    const hasTb=b.slice(-30).every(x=>x.tb!=null&&x.v>0);
+    let used=false;
+    // a) selling climax: huge volume after a decline, closes off the low
+    for(let i=m;i>=m-4&&!used;i--){const x=b[i],va=vavg(i),rg=x.h-x.l;if(va>0&&x.v>=2.5*va&&prevDown(i)<=-2&&rg>0&&(x.c-x.l)/rg>=0.45){
+      const held=b.slice(i+1).every(y=>y.c>=x.l);used=true;
+      add('투매 후 흡수','하락 끝에 평균 '+(x.v/va).toFixed(1)+'배 거래량으로 아래꼬리 마감: 공포 매도를 큰손이 받아낸 흔적 (저점 신호)'+(i<m?(held?', 이후 저점 '+T(x.l)+' 유지 중':', 하지만 이후 저점 이탈'):''),held?2:0.5)}}
+    // b) spring: dips under the recent low and closes back above on volume
+    if(!used){const lo20=ll(b,20,m-3);for(let i=m;i>=m-2;i--){const x=b[i],va=vavg(i);if(x.l<lo20&&x.c>lo20&&x.v>=1.3*va){used=true;add('스프링(저점 속임수)','직전 저점 '+T(lo20)+'을 깼다가 거래량 실리며 다시 위로 마감: 손절 물량을 받아 가는 세력 패턴',1.5);break}}}
+    // c) absorption: heavy volume but price stops falling
+    {let hv=0,va=vavg(m-4,30);for(let i=m-4;i<=m;i++)hv+=b[i].v;hv/=5;const rg=(hh(b,5,m)-ll(b,5,m))/atr,dn=prevDown(m-4,15);
+      if(va>0&&hv>=1.5*va&&rg<=2&&dn<=-2&&ll(b,5,m)>=ll(b,20,m-5)-0.3*atr)add('매도 흡수','하락 뒤 거래량은 평균 '+(hv/va).toFixed(1)+'배인데 가격은 버팀: 나오는 물량을 누군가 계속 받는 중',1)}
+    // d) OBV accumulation divergence
+    {const ob=[0];for(let i=1;i<n;i++)ob.push(ob[i-1]+(c[i]>c[i-1]?b[i].v:c[i]<c[i-1]?-b[i].v:0));
+      const k=30,pc=(c[m]-c[m-k])/atr;let vs=0;for(let i=m-k+1;i<=m;i++)vs+=b[i].v;const oc=(ob[m]-ob[m-k])/(vs||1);
+      if(pc<=0.5&&oc>=0.15)add('OBV 매집','최근 '+k+'봉 가격은 '+(pc<-0.5?'내렸는데':'제자리인데')+' 거래량 흐름(OBV)은 올라감: 조용한 매집 흔적',1.5);
+      else if(pc>=-0.5&&oc<=-0.15)add('OBV 분산','최근 '+k+'봉 가격은 '+(pc>0.5?'올랐는데':'제자리인데')+' 거래량 흐름(OBV)은 내려감: 물량 넘기는 흔적',-1.5)}
+    // e) taker buy ratio (aggressive buyers)
+    if(hasTb){let tb=0,tv=0,tb0=0,tv0=0;for(let i=m-9;i<=m;i++){tb+=b[i].tb;tv+=b[i].v}for(let i=m-39;i<m-9;i++){tb0+=b[i].tb;tv0+=b[i].v}
+      const r=tb/tv,r0=tb0/tv0,pc=(c[m]-c[m-9])/atr;
+      if(r>=0.53&&r-r0>=0.02&&pc<=0.5)add('시장가 매수 우위','최근 10봉 체결 중 시장가 매수가 '+(r*100).toFixed(0)+'% (이전 '+(r0*100).toFixed(0)+'%): 가격이 '+(pc<-0.5?'빠지는데도':'안 오르는데도')+' 적극 매수가 늘어남',1);
+      else if(r<=0.47&&r0-r>=0.02&&pc>=-0.5)add('시장가 매도 우위','최근 10봉 체결 중 시장가 매도가 '+((1-r)*100).toFixed(0)+'%: 가격이 버텨도 적극 매도가 늘어남',-1)}
+    // f) selling exhaustion: lower lows on shrinking volume
+    if(!used){const L=pivots(b,3,n-60).L;if(L.length>=2){const z=L.at(-1),a=L.at(-2);if(z.i>=n-20&&z.p<a.p){const vz=vavg(z.i+2,5),va2=vavg(a.i+2,5);
+      if(va2>0&&vz<=0.7*va2)add('매도세 소진','저점은 낮아졌는데 거래량은 직전 저점의 '+Math.round(vz/va2*100)+'%: 팔 사람이 줄어드는 중',1)}}}
+    // g) buying climax at the top (opposite side)
+    for(let i=m;i>=m-3;i--){const x=b[i],va=vavg(i),rg=x.h-x.l;if(va>0&&x.v>=2.5*va&&prevDown(i)>=2&&rg>0&&(x.h-x.c)/rg>=0.5){add('고점 대량 매도','상승 끝에 평균 '+(x.v/va).toFixed(1)+'배 거래량으로 위꼬리 마감: 큰손 차익 실현 흔적 (고점 신호)',-1.5);break}}
+  }
   const score=N.reduce((s,q)=>s+q.s,0);
   const dir=score>=2?'상승 우위':score>=0.75?'약한 상승':score<=-2?'하락 우위':score<=-0.75?'약한 하락':'중립';
   const cls=score>=0.75?'c-up':score<=-0.75?'c-down':'';
@@ -339,7 +377,7 @@ function tick(p){const t=p>=1e6?1000:p>=5e5?500:p>=1e5?100:p>=5e4?50:p>=1e4?10:p
 
 const COINS=[['BTC','비트코인'],['ETH','이더리움'],['XRP','리플'],['ONDO','온도파이낸스'],['AAVE','에이브'],['TAO','비트텐서']];
 const PN=['A','B','C'];
-const S={kl:{},an:{},pl:{},bpx:{},bchg:{},upx:{},uchg:{},usdt:null,sel:'BTC',tf:'D',calcAt:null,binOk:false,upOk:false};
+const S={mode:'S',ratio:[30,30,40],kl:{},an:{},pl:{},bpx:{},bchg:{},upx:{},uchg:{},usdt:null,sel:'BTC',tf:'D',calcAt:null,binOk:false,upOk:false};
 const $=(id)=>document.getElementById(id);
 const mk=(tag,cls,txt)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(txt!=null)x.textContent=txt;return x};
 const won=(v)=>v>=100?Math.round(v).toLocaleString('ko-KR'):v.toFixed(v>=10?1:2);
@@ -352,7 +390,7 @@ const K=(s,v)=>{const x=krw(s,v);return x?won(x):'—'};
 const fill=(s,txt)=>txt.replace(/\{([\d.eE+-]+)\}/g,(m,v)=>{const k=krw(s,+v);return k?won(k)+'원':usd(+v)+' USDT'});
 
 const HOSTS=['https://api.binance.com','https://data-api.binance.vision'];
-async function getKl(sym,iv){let err;for(const h of HOSTS){try{const r=await fetch(h+'/api/v3/klines?symbol='+sym+'USDT&interval='+iv+'&limit=400');if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}))}catch(e){err=e}}throw err}
+async function getKl(sym,iv){let err;for(const h of HOSTS){try{const r=await fetch(h+'/api/v3/klines?symbol='+sym+'USDT&interval='+iv+'&limit=400');if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5],tb:k[9]!=null?+k[9]:null}))}catch(e){err=e}}throw err}
 let klAt=0;
 async function loadAll(){
   let ok=0;klAt=Date.now();
@@ -387,44 +425,96 @@ function upWs(){
   ws.onerror=()=>{try{ws.close()}catch(e){}};
 }
 
-// what to do now, for one coin and timeframe
+// breakout (chase) entry: price ran above the plan without giving the buy price
+function chaseOf(s,tf,P){
+  const kl=S.kl[s],atr=S.an[s][tf].view.atr,calc=S.calcAt||Date.now();
+  const hb=kl.h.filter(x=>x.t+4*3600e3>calc),done=hb.slice(0,-1);
+  let lvl=P.t1,tgt=P.t2;if(done.some(x=>x.c>P.t2)){lvl=P.t2;tgt=P.t2+2*atr}
+  const ci=done.findIndex(x=>x.c>lvl),conf=ci>=0,after=conf?hb.slice(ci+1):[];
+  return {lvl,tgt,tgt2:tgt+1.5*atr,stop:lvl-atr,conf,retest:after.some(x=>x.l<=lvl*1.003)};
+}
+function chaseStatus(s,P,c,b,pre){
+  const R=(o)=>Object.assign({cols:[c.lvl,c.stop,c.tgt,c.tgt2],
+    card:[['돌파 매수가',c.lvl,'buy',1],['손절',c.stop,'stop'],['1차 목표',c.tgt,'sell'],['원래 매수가',P.buy,'muted'],['2차 목표',c.tgt2,'sell']],
+    lines:[['2차 목표','목표2',c.tgt2,'var(--ok)'],['1차 목표','목표1',c.tgt,'var(--ok)'],['돌파 매수','돌파매수',c.lvl,'var(--fg)',1],['손절','손절',c.stop,'var(--bad)'],['원래 매수','원매수',P.buy,'#8b96a5',0,1]]},o,{txt:pre+o.txt});
+  if(!c.conf)return R({cls:'',chip:'c-warn',short:'돌파 시도',txt:'저항 '+K(s,c.lvl)+' 돌파 시도 → 4시간봉 마감 확인',note:'마감 위에서 확정되면 '+K(s,c.lvl)+' 되돌림 매수'});
+  if(b<c.stop)return R({cls:'a-stop',chip:'c-stop',short:'가짜 돌파',txt:'돌파 실패('+K(s,c.stop)+' 아래) → 추격 물량 정리',note:'원래 매수가 '+K(s,P.buy)+'로 복귀'});
+  if(c.retest&&b>=c.tgt)return R({cls:'a-sell',chip:'c-sell',short:'추격 목표 도달',txt:'추격 1차 목표 '+K(s,c.tgt)+' 도달 → 절반 정리',note:'나머지는 '+K(s,c.tgt2)});
+  if(b<=c.lvl*1.005)return R({cls:'a-buy',chip:'c-buy',short:'돌파 되돌림 매수',txt:'돌파 되돌림 매수 구간 '+K(s,c.lvl)+' · 손절 '+K(s,c.stop)+' · 목표 '+K(s,c.tgt),note:''});
+  if(c.retest)return R({cls:'a-buy',chip:'c-buy',short:'추격 보유',txt:'추격 보유 · 목표 '+K(s,c.tgt)+' · 손절 '+K(s,c.stop),note:''});
+  return R({cls:'',chip:'c-up',short:'돌파 확인',txt:'돌파 확인 → '+K(s,c.lvl)+'까지 눌림 대기 ('+pct((c.lvl/b-1)*100)+')',note:'추격 매수는 눌림에서만 · 손절 '+K(s,c.stop)});
+}
+const avgOf=(ps,rs)=>{let m=0,q=0;ps.forEach((p,i)=>{m+=rs[i];q+=rs[i]/p});return q?m/q:null};
+// stop-loss mode
 function status(s,tf){
-  const plans=S.pl[s]&&S.pl[s][tf],b=S.bpx[s],kl=S.kl[s];if(!plans||!b||!kl)return null;
-  const ps=planState(plans,kl.h,S.calcAt||Date.now(),b),i=ps.act,v=S.an[s]&&S.an[s][tf].view;
-  if(i<0)return {ps,i,P:null,cls:'a-stop',chip:'c-stop',short:'모든 플랜 무효',txt:'플랜 A·B·C 다 깨짐 → 가격대 다시 계산'};
+  if(S.mode==='M')return mstatus(s,tf);
+  const plans=S.pl[s]&&S.pl[s][tf],b=S.bpx[s],kl=S.kl[s];if(!plans||!b||!kl||!S.an[s])return null;
+  const ps=planState(plans,kl.h,S.calcAt||Date.now(),b),i=ps.act,v=S.an[s][tf].view;
+  if(i<0){const C=plans[2];return {ps,i,cls:'a-stop',chip:'c-stop',short:'모든 플랜 무효',txt:'플랜 A·B·C 다 깨짐 → 가격대 다시 계산',note:'',cols:[null,null,null,null],card:[],lines:[['C 손절','C손절',C.s1,'var(--bad)']]}}
   const P=plans[i],st=ps.st[i],nm='플랜 '+PN[i],nx=i<2?'플랜 '+PN[i+1]:null;
   const pre=i>0?PN.slice(0,i).join('·')+' 무효 → ':'';
+  if(!st.touched){const c=chaseOf(s,tf,P);if((c.conf&&!(b<c.stop&&b<=P.buy*1.005))||b>=P.t1*0.997){const o=chaseStatus(s,P,c,b,pre);o.ps=ps;o.i=i;o.chase=c;return o}}
   let txt,cls='',chip='',short;
   if(b<P.s1){cls='a-stop';chip='c-stop';short=nm+' 손절가 아래';txt=nm+' 손절선 '+K(s,P.s1)+' 아래 → 신규 매수 금지'}
   else if(st.touched&&b>=P.t2){cls='a-sell';chip='c-sell';short=nm+' 2차 매도';txt='2차 매도 '+K(s,P.t2)+' 도달 → 남은 물량 정리'}
   else if(st.touched&&b>=P.t1){cls='a-sell';chip='c-sell';short=nm+' 1차 매도';txt='1차 매도 '+K(s,P.t1)+' 도달 → 절반 정리, 나머지는 '+K(s,P.t2)}
-  else if(!st.touched&&b>=P.t1){short='추격 금지';txt='매수가 '+K(s,P.buy)+' 안 주고 상승 → 추격 금지, 눌림 대기'}
   else if(b<=P.buy*1.005){cls='a-buy';chip='c-buy';short=nm+' 매수 구간';txt=nm+' 매수 구간 '+K(s,P.buy)+' · 손절 '+K(s,P.s1)+' · 1차 매도 '+K(s,P.t1)}
   else if(st.touched){cls='a-buy';chip='c-buy';short=nm+' 보유 구간';txt=nm+' 보유 · 1차 매도 '+K(s,P.t1)+' · 손절 '+K(s,P.s1)}
   else{short=nm+' 대기';txt=nm+' 매수가 '+K(s,P.buy)+' 대기 ('+pct((P.buy/b-1)*100)+')'}
   if(st.rec)txt=nm+' 회복(재진입) · '+txt;
   let note=b<P.s1&&nx?'4시간봉이 손절선 아래 마감하면 '+nx+'('+K(s,plans[i+1].buy)+')로':'';
-  if(!note)note=v&&v.score<=-2&&(cls==='a-buy'||short.endsWith('대기'))?'하락 우위라 나눠서 접근':'';
-  return {ps,i,P,cls,chip,short,txt:pre+txt,note};
+  if(!note&&!st.touched&&b<P.t1)note='매수가 안 주고 '+K(s,P.t1)+' 돌파하면 돌파 되돌림 매수로 전환';
+  if(v.score<=-2&&(cls==='a-buy'||short.endsWith('대기')))note=(note?note+' · ':'')+'하락 우위라 나눠서 접근';
+  const pn=PN[i],lines=[['2차 매도','매도2',P.t2,'var(--ok)'],['1차 매도','매도1',P.t1,'var(--ok)'],[pn+' 매수',pn+' 매수',P.buy,'var(--fg)',1],['1차 손절','손절1',P.s1,'var(--bad)'],['2차 손절','손절2',P.s2,'var(--bad)']];
+  if(i<2)lines.push([PN[i+1]+' 매수',PN[i+1]+' 매수',plans[i+1].buy,'#8b96a5',0,1]);
+  return {ps,i,cls,chip,short,txt:pre+txt,note,cols:[P.buy,P.s1,P.t1,P.t2],
+    card:[['플랜 '+pn+' 매수가',P.buy,'buy',1],['1차 손절',P.s1,'stop'],['1차 매도',P.t1,'sell'],['2차 손절',P.s2,'stop'],['2차 매도',P.t2,'sell']],lines};
+}
+// averaging-down mode
+function mstatus(s,tf){
+  const plans=S.pl[s]&&S.pl[s][tf],b=S.bpx[s],kl=S.kl[s];if(!plans||!b||!kl||!S.an[s])return null;
+  const ps=planState(plans,kl.h,S.calcAt||Date.now(),b),v=S.an[s][tf].view,R=S.ratio;
+  const [A,B,C]=plans,fin=C.s1;let k=0;while(k<3&&ps.st[k].touched)k++;
+  const buys=plans.map(p=>p.buy),avgAll=avgOf(buys,R),avgNow=k?avgOf(buys.slice(0,k),R.slice(0,k)):null;
+  const tg1=k?plans[k-1].t1:A.t1,tg2=k>1?plans[k-2].t1:A.t2;
+  const NM=['1차 매수','1차 물타기','2차 물타기'];
+  const base={ps,i:Math.max(0,k-1),m:{k,avgAll,avgNow,fin,tg1,tg2},cols:[A.buy,B.buy,C.buy,fin],
+    card:[[k?'평단 ('+k+'단계 체결)':'평단 (3단계 모두 체결 시)',k?avgNow:avgAll,'buy',1],['1차 매수',A.buy,''],['1차 물타기',B.buy,''],['2차 물타기',C.buy,''],['최종 손절',fin,'stop'],['1차 매도',tg1,'sell']],
+    lines:[['1차 매도','매도1',tg1,'var(--ok)'],['1차 매수','1차매수',A.buy,'var(--fg)',k===0],['1차 물타기','물타기1',B.buy,'var(--warn)',k===1],['2차 물타기','물타기2',C.buy,'var(--warn)',k===2],['최종 손절','최종손절',fin,'var(--bad)',1]].concat(k?[['평단','평단',avgNow,'#b48cff']]:[])};
+  const R2=(o)=>Object.assign({},base,o);
+  const done=kl.h.filter(x=>x.t+4*3600e3>(S.calcAt||Date.now())).slice(0,-1);
+  if(k>0&&done.some(x=>x.c<fin))return R2({cls:'a-stop',chip:'c-stop',short:'최종 손절',txt:'최종 손절선 '+K(s,fin)+' 마감 이탈 → 전량 정리',note:'정리 후 가격대 다시 계산'});
+  if(b<fin)return R2({cls:'a-stop',chip:'c-stop',short:'최종 손절선 아래',txt:'최종 손절선 '+K(s,fin)+' 아래 → 4시간봉 마감 깨지면 전량 정리',note:''});
+  if(k===0){
+    const c=chaseOf(s,tf,A);if((c.conf&&!(b<c.stop&&b<=A.buy*1.005))||b>=A.t1*0.997){const o=chaseStatus(s,A,c,b,'');return Object.assign(o,{ps,i:0,chase:c,cols:[c.lvl,null,null,c.stop]})}
+    if(b<=A.buy*1.005)return R2({cls:'a-buy',chip:'c-buy',short:'1차 매수 구간',txt:'1차 매수 구간 '+K(s,A.buy),note:'물타기 '+K(s,B.buy)+' · '+K(s,C.buy)+' · 최종 손절 '+K(s,fin)});
+    return R2({cls:'',chip:'',short:'1차 매수 대기',txt:'1차 매수 '+K(s,A.buy)+' 대기 ('+pct((A.buy/b-1)*100)+')',note:'물타기 '+K(s,B.buy)+' · '+K(s,C.buy)+' · 최종 손절 '+K(s,fin)+(v.score<=-2?' · 하락 우위':'')});
+  }
+  if(b>=tg2)return R2({cls:'a-sell',chip:'c-sell',short:'2차 매도',txt:'2차 매도 '+K(s,tg2)+' 도달 → 남은 물량 정리',note:'평단 '+K(s,avgNow)+' 대비 '+pct((tg2/avgNow-1)*100)});
+  if(b>=tg1)return R2({cls:'a-sell',chip:'c-sell',short:'1차 매도',txt:'1차 매도 '+K(s,tg1)+' 도달 → 절반 정리',note:'평단 '+K(s,avgNow)+' 대비 '+pct((tg1/avgNow-1)*100)+' · 나머지는 '+K(s,tg2)});
+  if(k<3&&b<=plans[k].buy*1.005)return R2({cls:'a-buy',chip:'c-buy',short:NM[k]+' 구간',txt:NM[k]+' 구간 '+K(s,plans[k].buy),note:'체결하면 평단 '+K(s,avgOf(buys.slice(0,k+1),R.slice(0,k+1)))+' · 최종 손절 '+K(s,fin)});
+  return R2({cls:'a-buy',chip:'c-buy',short:k+'단계 보유',txt:k+'단계 보유 · 평단 '+K(s,avgNow)+' ('+pct((b/avgNow-1)*100)+')',note:(k<3?'다음 '+NM[k]+' '+K(s,plans[k].buy)+' · ':'')+'1차 매도 '+K(s,tg1)+' · 최종 손절 '+K(s,fin)});
 }
 
+const HEADS={S:['매수가','1차 손절','1차 매도','2차 매도'],M:['1차 매수','1차 물타기','2차 물타기','최종 손절']},COLC={S:['buy','stop','sell','sell'],M:['buy','buy','buy','stop']};
 let last=0,pending=false;
 function render(force){
   const now=Date.now();if(!force&&now-last<1000){if(!pending){pending=true;setTimeout(()=>{pending=false;render(true)},1000)}return}
   last=now;const tf=S.tf;
   const r0=rate('BTC');$('t-rate').textContent=S.usdt?won(S.usdt):r0?won(r0):'—';
   $('t-calc').textContent=S.calcAt?'가격대 계산: '+new Date(S.calcAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  HEADS[S.mode].forEach((t,i)=>{const e=$('h'+(i+1));if(e)e.textContent=t});
   const frag=document.createDocumentFragment(),cfrag=document.createDocumentFragment();let any=false,stale=false;
   for(const [s,name] of COINS){
-    const an=S.an[s],b=S.bpx[s],stt=status(s,tf);if(!an||!b||!stt)continue;any=true;if(stt.i<0)stale=true;
-    const up=S.upx[s]||krw(s,b),chg=S.uchg[s]!=null?S.uchg[s]:S.bchg[s],P=stt.P,vD=an.D.view,vH=an.H.view;
+    const an=S.an[s],b=S.bpx[s],stt=status(s,tf);if(!an||!b||!stt)continue;any=true;if(stt.i<0||stt.short==='최종 손절')stale=true;
+    const up=S.upx[s]||krw(s,b),chg=S.uchg[s]!=null?S.uchg[s]:S.bchg[s],vD=an.D.view,vH=an.H.view;
     const tr=mk('tr','row'+(s===S.sel?' sel':''));tr.dataset.s=s;
     const cell=(t,c)=>{const e=mk('td',c,t);tr.append(e);return e};
     const c0=cell(name,'l');c0.append(mk('span','sym',s));
     const c1=cell(up?won(up):'—');c1.append(mk('span','sym '+(chg>0?'up':chg<0?'down':''),chg!=null?pct(chg,2):'—'));
     const dv=mk('div','dirs');[['일봉',vD],['4시간',vH]].forEach(([lab,v])=>{const r=mk('div');r.append(mk('span','lab',lab),mk('span','chip '+(v?v.cls:''),v?v.dir:'—'));dv.append(r)});cell('','l').append(dv);
     cell('','l').append(mk('span','chip '+(stt.chip||''),stt.short));
-    cell(P?K(s,P.buy):'—','buy');cell(P?K(s,P.s1):'—','stop');cell(P?K(s,P.t1):'—','sell');cell(P?K(s,P.t2):'—','sell');
+    const cc=stt.chase&&S.mode==='S'?['buy','stop','sell','sell']:COLC[S.mode];stt.cols.forEach((v,j)=>cell(v!=null?K(s,v):'—',cc[j]));
     const ca=cell(stt.txt,'act');if(stt.note)ca.append(mk('span','st2',stt.note));
     frag.append(tr);
     const card=mk('div','mcard'+(s===S.sel?' sel':''));card.dataset.s=s;
@@ -432,8 +522,7 @@ function render(force){
     const meta=mk('div','mmeta');meta.append(mk('span',chg>0?'up':chg<0?'down':'',chg!=null?pct(chg,2):'—'),mk('span','','일봉'),mk('span','chip '+(vD?vD.cls:''),vD?vD.dir:'—'),mk('span','','4시간'),mk('span','chip '+(vH?vH.cls:''),vH?vH.dir:'—'));
     const act=mk('div','actbox '+stt.cls,stt.txt);if(stt.note)act.append(mk('span','st2',stt.note));
     card.append(head,meta,act);
-    if(P){const g=mk('div','mlv');const item=(lab,v,cls,full)=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)};
-      item('플랜 '+PN[stt.i]+' 매수가',P.buy,'buy',true);item('1차 손절',P.s1,'stop');item('1차 매도',P.t1,'sell');item('2차 손절',P.s2,'stop');item('2차 매도',P.t2,'sell');card.append(g)}
+    if(stt.card.length){const g=mk('div','mlv');stt.card.forEach(([lab,v,cls,full])=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)});card.append(g)}
     cfrag.append(card);
   }
   if(any){$('rows').replaceChildren(frag);$('cards').replaceChildren(cfrag)}
@@ -442,7 +531,9 @@ function render(force){
 }
 function detail(){
   const s=S.sel,tf=S.tf,an=S.an[s],name=COINS.find(c=>c[0]===s)[1],tfn=tf==='D'?'일봉 (스윙)':'4시간 (단기)';
-  $('d-title').textContent=name+' ('+s+') · '+tfn+' 관점';$('c-title').textContent='차트 · '+(tf==='D'?'최근 120일 일봉':'최근 120개 4시간봉(약 20일)');$('p-title').textContent='플랜 A · B · C · '+tfn;
+  $('d-title').textContent=name+' ('+s+') · '+tfn+' 관점';$('c-title').textContent='차트 · '+(tf==='D'?'최근 120일 일봉':'최근 120개 4시간봉(약 20일)');
+  $('p-title').textContent=(S.mode==='M'?'물타기 계획 · ':'플랜 A · B · C · ')+tfn;
+  $('p-note-S').hidden=S.mode==='M';$('p-note-M').hidden=S.mode!=='M';
   const stt=status(s,tf);if(!an||!stt)return;
   const a=$('d-act');a.className='actbox '+stt.cls;a.replaceChildren(mk('b','','지금 할 일  '),document.createTextNode(stt.txt));if(stt.note)a.append(mk('span','st2',stt.note));
   const vf=document.createDocumentFragment();
@@ -453,30 +544,43 @@ function detail(){
     vf.append(box)});
   $('d-views').replaceChildren(vf);
   const plans=S.pl[s][tf],b=S.bpx[s],pf=document.createDocumentFragment();
-  plans.forEach((P,i)=>{const st=stt.ps.st[i],on=i===stt.i,box=mk('div','box'+(on?' on':st.inv?' off':''));
-    const bh=mk('div','bhead');bh.append(mk('h3','','플랜 '+PN[i]+(i===0?' · 메인':i===1?' · A 이탈 시':' · B 이탈 시')),mk('span','chip '+(on?'c-on':st.inv?'c-off':''),on?'진행 중':st.inv?'무효':'대기'));box.append(bh);
-    const g=mk('div','mlv');const item=(lab,v,cls,full)=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)};
-    item('매수가 ('+pct((P.buy/b-1)*100)+')',P.buy,'buy',true);item('1차 손절',P.s1,'stop');item('1차 매도',P.t1,'sell');item('2차 손절',P.s2,'stop');item('2차 매도',P.t2,'sell');box.append(g);
-    const bs=mk('div','basis');const ln=(k,t)=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)};
-    ln('매수 근거',P.basis.buy);ln('손절 기준',P.basis.s1);ln('1차 매도',P.basis.t1);ln('2차 매도',P.basis.t2);
-    ln('바이낸스','매수 '+usd(P.buy)+' / 손절 '+usd(P.s1)+' / 매도 '+usd(P.t1)+', '+usd(P.t2)+' USDT');box.append(bs);pf.append(box)});
+  const item=(g,lab,v,cls,full)=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)};
+  if(stt.chase){const c=stt.chase,box=mk('div','box on'),bh=mk('div','bhead');bh.append(mk('h3','','돌파 매수 (추격)'),mk('span','chip c-on',c.conf?'진행 중':'확인 대기'));box.append(bh);
+    const g=mk('div','mlv');item(g,'돌파 매수가 (되돌림)',c.lvl,'buy',1);item(g,'손절',c.stop,'stop');item(g,'1차 목표',c.tgt,'sell');item(g,'원래 매수가',plans[0].buy,'muted');item(g,'2차 목표',c.tgt2,'sell');box.append(g);
+    const bs=mk('div','basis');[['조건','저항을 4시간봉 종가로 돌파한 뒤, 그 자리까지 눌렸을 때만 매수'],['손절','돌파 자리 − 1 ATR (다시 아래로 마감하면 가짜 돌파)']].forEach(([k,t])=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)});box.append(bs);pf.append(box)}
+  if(S.mode==='M'){
+    const m=stt.m||{k:0},box=mk('div','box on'),bh=mk('div','bhead');bh.append(mk('h3','','물타기 단계'),mk('span','chip c-on',(m.k||0)+' / 3 체결'));box.append(bh);
+    const tb=mk('table'),hr=mk('tr');[['단계','l'],['매수가',''],['비율',''],['체결 후 평단','']].forEach(([t,c])=>hr.append(mk('th',c,t)));const th=mk('thead');th.append(hr);tb.append(th);
+    const bd=mk('tbody'),NM=['1차 매수','1차 물타기','2차 물타기'],rs=S.ratio,sum=rs.reduce((x,y)=>x+y,0)||1;
+    plans.forEach((P,i)=>{const tr=mk('tr');const av=avgOf(plans.slice(0,i+1).map(p=>p.buy),rs.slice(0,i+1));const c0=mk('td','l',NM[i]);c0.append(mk('small','mst'+(i<(m.k||0)?' up':''),i<(m.k||0)?'체결':'대기'));
+      tr.append(c0,mk('td','buy',K(s,P.buy)),mk('td','',Math.round(rs[i]/sum*100)+'%'),mk('td','',K(s,av)));bd.append(tr)});
+    tb.append(bd);const sc=mk('div','scroll');sc.append(tb);box.append(sc);
+    const fin=plans[2].s1,avAll=avgOf(plans.map(p=>p.buy),rs);
+    const bs=mk('div','basis');[['최종 손절',K(s,fin)+'원 (2차 물타기 플랜의 1차 손절) · 전부 체결 후 이탈 시 평단 대비 '+pct((fin/avAll-1)*100)],['매도','가장 깊이 체결된 단계의 1차 매도가에서 절반, 그 위 단계의 1차 매도가에서 나머지'],['비율','아래 칸에서 바꿀 수 있어. 같은 금액 기준이 아니라 비율 기준 평단이야']].forEach(([k,t])=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)});box.append(bs);
+    const fr=mk('div','frm');fr.innerHTML='';const lb=mk('label','','비율');[0,1,2].forEach(j=>{const inp=mk('input','sm');inp.type='number';inp.min='0';inp.max='100';inp.value=rs[j];inp.dataset.j=j;inp.addEventListener('change',()=>{const v=Math.max(0,+inp.value||0);S.ratio[j]=v;if(S.ratio.every(x=>!x))S.ratio=[30,30,40];try{localStorage.setItem('cx-ratio',JSON.stringify(S.ratio))}catch(e){}render(true)});lb.append(inp);if(j<2)lb.append(document.createTextNode(':'))});fr.append(lb);box.append(fr);
+    pf.append(box);
+  }else{
+    plans.forEach((P,i)=>{const st=stt.ps.st[i],on=i===stt.i&&!stt.chase,box=mk('div','box'+(on?' on':st.inv?' off':''));
+      const bh=mk('div','bhead');bh.append(mk('h3','','플랜 '+PN[i]+(i===0?' · 메인':i===1?' · A 이탈 시':' · B 이탈 시')),mk('span','chip '+(on?'c-on':st.inv?'c-off':''),on?'진행 중':st.inv?'무효':'대기'));box.append(bh);
+      const g=mk('div','mlv');item(g,'매수가 ('+pct((P.buy/b-1)*100)+')',P.buy,'buy',1);item(g,'1차 손절',P.s1,'stop');item(g,'1차 매도',P.t1,'sell');item(g,'2차 손절',P.s2,'stop');item(g,'2차 매도',P.t2,'sell');box.append(g);
+      const bs=mk('div','basis');const ln=(k,t)=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)};
+      ln('매수 근거',P.basis.buy);ln('손절 기준',P.basis.s1);ln('1차 매도',P.basis.t1);ln('2차 매도',P.basis.t2);
+      ln('바이낸스','매수 '+usd(P.buy)+' / 손절 '+usd(P.s1)+' / 매도 '+usd(P.t1)+', '+usd(P.t2)+' USDT');box.append(bs);pf.append(box)});
+  }
   $('d-plans').replaceChildren(pf);
   chart(stt);
 }
 function chart(stt){
   const s=S.sel,tf=S.tf,an=S.an[s],el=$('chart'),r=rate(s);if(!stt)stt=status(s,tf);
   if(!an||!stt||!r){el.textContent='';return}
-  const plans=S.pl[s][tf],ai=stt.i<0?2:stt.i,lv=plans[ai];
-  const W=Math.max(280,el.clientWidth),nar=W<560,H=nar?300:340,ml=nar?44:64,mr=nar?96:170,mt=12,mb=26,fs=nar?11:12;
+  const W=Math.max(280,el.clientWidth),nar=W<560,H=nar?300:340,ml=nar?44:64,mr=nar?100:170,mt=12,mb=26,fs=nar?11:12;
   const pts=an[tf].closes.map(p=>({t:p.t,v:p.c*r}));const live=S.bpx[s]*r;pts[pts.length-1].v=live;
   const kf=(v)=>v>=1e8?parseFloat((v/1e8).toFixed(2))+'억':v>=1e5?Math.round(v/1e4).toLocaleString('ko-KR')+'만':v>=1e4?parseFloat((v/1e4).toFixed(1))+'만':won(v);
   const kl=(v)=>v>=1e8?parseFloat((v/1e8).toFixed(3))+'억':kf(v);
-  const pn=PN[ai];
-  const lvs=[['2차 매도','매도2',lv.t2,'var(--ok)'],['1차 매도','매도1',lv.t1,'var(--ok)'],[pn+' 매수',pn+' 매수',lv.buy,'var(--fg)'],['1차 손절','손절1',lv.s1,'var(--bad)'],['2차 손절','손절2',lv.s2,'var(--bad)']].map(x=>({lab:x[0],sh:x[1],v:tick(x[2]*r),col:x[3],main:x[2]===lv.buy}));
-  if(ai<2)lvs.push({lab:PN[ai+1]+' 매수',sh:PN[ai+1]+' 매수',v:tick(plans[ai+1].buy*r),col:'#8b96a5',main:false,dim:true});
+  const lvs=stt.lines.map(x=>({lab:x[0],sh:x[1],v:tick(x[2]*r),col:x[3],main:!!x[4],dim:!!x[5]}));
   let lo=Math.min(...pts.map(p=>p.v),...lvs.map(l=>l.v)),hi=Math.max(...pts.map(p=>p.v),...lvs.map(l=>l.v));const pad=(hi-lo)*0.06;lo-=pad;hi+=pad;
   const x1=W-mr,x=(i)=>ml+(x1-ml)*i/(pts.length-1),y=(v)=>mt+(H-mt-mb)*(1-(v-lo)/(hi-lo));
-  let h='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+s+' 종가와 플랜 가격대">';
+  let h='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+s+' 종가와 가격대">';
   for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,yy=y(v);h+='<line x1="'+ml+'" x2="'+x1+'" y1="'+yy+'" y2="'+yy+'" stroke="#222a33"/><text x="'+(ml-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10.5" fill="#8b96a5">'+kf(v)+'</text>'}
   const last=pts.length-1;(nar?[0,Math.round(last/2),last]:[0,Math.round(last/4),Math.round(last/2),Math.round(last*3/4),last]).forEach((i,j,arr)=>{const d=new Date(pts[i].t+9*3600e3);h+='<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="'+(j===0?'start':j===arr.length-1?'end':'middle')+'" font-size="10.5" fill="#8b96a5">'+(d.getUTCMonth()+1)+'/'+d.getUTCDate()+'</text>'});
   lvs.forEach(l=>{const yy=y(l.v);h+='<line x1="'+ml+'" x2="'+x1+'" y1="'+yy+'" y2="'+yy+'" stroke="'+l.col+'" stroke-opacity="'+(l.main?1:l.dim?0.5:0.75)+'" stroke-width="'+(l.main?1.5:1)+'"'+(l.main?'':' stroke-dasharray="'+(l.dim?'2 4':'4 3')+'"')+'/>'});
@@ -497,6 +601,8 @@ $('btn-recalc').addEventListener('click',recalc);
 $('rate-in').addEventListener('input',()=>render(true));
 window.addEventListener('resize',()=>chart());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(!S.bws||S.bws.readyState>1)binWs();if(!S.uws||S.uws.readyState>1)upWs();if(Date.now()-klAt>5*60*1000)loadAll()});
+$('mode').addEventListener('click',(ev)=>{const b=ev.target.closest('button');if(!b)return;S.mode=b.dataset.m;$('mode').querySelectorAll('button').forEach(x=>{x.className=x.dataset.m===S.mode?'on':''});try{localStorage.setItem('cx-mode',S.mode)}catch(e){}render(true)});
+try{const m=localStorage.getItem('cx-mode');if(m==='M'){S.mode='M';$('mode').querySelectorAll('button').forEach(x=>{x.className=x.dataset.m==='M'?'on':''})}const r=JSON.parse(localStorage.getItem('cx-ratio')||'null');if(Array.isArray(r)&&r.length===3&&r.some(x=>x>0))S.ratio=r.map(Number)}catch(e){}
 try{const t=localStorage.getItem('cx-tf');if(t==='H'){S.tf='H';$('tf').querySelectorAll('button').forEach(x=>{x.className=x.dataset.tf==='H'?'on':''})}}catch(e){}
 load();loadAll();binWs();upWs();setInterval(loadAll,5*60*1000);setTimeout(()=>{if(!S.upOk)$('manual').hidden=false},8000);
 </script>
