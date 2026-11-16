@@ -88,6 +88,9 @@ details { color:var(--muted); font-size:12px; } details summary { cursor:pointer
 .frm input.sm { width:56px; text-align:right; }
 .box table td, .box table th { padding:7px 5px; }
 .mst { display:block; font-size:11px; color:var(--muted); } .mst.up { color:var(--warn); }
+small.usd { display:block; font-size:10.5px; font-weight:400; color:var(--muted); text-align:right; line-height:1.3; text-decoration:none; }
+.mpx small.usd { font-size:12px; }
+.mlv div { align-items:flex-start; }
 .mlv span.muted { color:var(--muted); text-decoration:line-through; }
 @media (max-width:1040px) { .desk { display:none; } .cards { display:block; } .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr)); gap:10px; } .mcard { margin-bottom:0; } }
 @media (max-width:760px) {
@@ -375,7 +378,7 @@ function planState(plans,h,calcAt,px){
 function tick(p){const t=p>=1e6?1000:p>=5e5?500:p>=1e5?100:p>=5e4?50:p>=1e4?10:p>=5e3?5:p>=100?1:p>=10?0.1:0.01;return Math.round(p/t)*t}
 //CORE-END
 
-const COINS=[['BTC','비트코인'],['ETH','이더리움'],['XRP','리플'],['ONDO','온도파이낸스'],['AAVE','에이브'],['TAO','비트텐서']];
+const COINS=[['BTC','비트코인'],['ETH','이더리움'],['XRP','리플'],['ONDO','온도파이낸스'],['AAVE','에이브'],['TAO','비트텐서'],['ARB','아비트럼'],['UNI','유니스왑']];
 const PN=['A','B','C'];
 const S={mode:'S',ratio:[30,30,40],kl:{},an:{},pl:{},bpx:{},bchg:{},upx:{},uchg:{},usdt:null,sel:'BTC',tf:'D',calcAt:null,binOk:false,upOk:false};
 const $=(id)=>document.getElementById(id);
@@ -387,6 +390,7 @@ const setDot=(id,st,txt)=>{$('d-'+id).className='dot '+(st||'');$('t-'+id).textC
 const rate=(s)=>{if(S.upx[s]&&S.bpx[s])return S.upx[s]/S.bpx[s];if(S.usdt)return S.usdt;const v=+$('rate-in').value;return v>0?v:null};
 const krw=(s,v)=>{const r=rate(s);return r?tick(v*r):null};
 const K=(s,v)=>{const x=krw(s,v);return x?won(x):'—'};
+const KU=(s,v,cls)=>{const e=mk('span',cls,K(s,v));e.append(mk('small','usd','$'+usd(v)));return e};
 const fill=(s,txt)=>txt.replace(/\{([\d.eE+-]+)\}/g,(m,v)=>{const k=krw(s,+v);return k?won(k)+'원':usd(+v)+' USDT'});
 
 const HOSTS=['https://api.binance.com','https://data-api.binance.vision'];
@@ -511,18 +515,18 @@ function render(force){
     const tr=mk('tr','row'+(s===S.sel?' sel':''));tr.dataset.s=s;
     const cell=(t,c)=>{const e=mk('td',c,t);tr.append(e);return e};
     const c0=cell(name,'l');c0.append(mk('span','sym',s));
-    const c1=cell(up?won(up):'—');c1.append(mk('span','sym '+(chg>0?'up':chg<0?'down':''),chg!=null?pct(chg,2):'—'));
+    const c1=cell(up?won(up):'—');const sy=mk('span','sym','$'+usd(b)+'  ');sy.append(mk('span',chg>0?'up':chg<0?'down':'',chg!=null?pct(chg,2):'—'));c1.append(sy);
     const dv=mk('div','dirs');[['일봉',vD],['4시간',vH]].forEach(([lab,v])=>{const r=mk('div');r.append(mk('span','lab',lab),mk('span','chip '+(v?v.cls:''),v?v.dir:'—'));dv.append(r)});cell('','l').append(dv);
     cell('','l').append(mk('span','chip '+(stt.chip||''),stt.short));
-    const cc=stt.chase&&S.mode==='S'?['buy','stop','sell','sell']:COLC[S.mode];stt.cols.forEach((v,j)=>cell(v!=null?K(s,v):'—',cc[j]));
+    const cc=stt.chase&&S.mode==='S'?['buy','stop','sell','sell']:COLC[S.mode];stt.cols.forEach((v,j)=>{const e=cell(v!=null?K(s,v):'—',cc[j]);if(v!=null)e.append(mk('span','sym','$'+usd(v)))});
     const ca=cell(stt.txt,'act');if(stt.note)ca.append(mk('span','st2',stt.note));
     frag.append(tr);
     const card=mk('div','mcard'+(s===S.sel?' sel':''));card.dataset.s=s;
-    const head=mk('div','mhead'),nm=mk('div','mname',name);nm.append(mk('small','',s));head.append(nm,mk('div','mpx',up?won(up):'—'));
+    const head=mk('div','mhead'),nm=mk('div','mname',name);nm.append(mk('small','',s));const mp=mk('div','mpx',up?won(up):'—');mp.append(mk('small','usd','$'+usd(b)));head.append(nm,mp);
     const meta=mk('div','mmeta');meta.append(mk('span',chg>0?'up':chg<0?'down':'',chg!=null?pct(chg,2):'—'),mk('span','','일봉'),mk('span','chip '+(vD?vD.cls:''),vD?vD.dir:'—'),mk('span','','4시간'),mk('span','chip '+(vH?vH.cls:''),vH?vH.dir:'—'));
     const act=mk('div','actbox '+stt.cls,stt.txt);if(stt.note)act.append(mk('span','st2',stt.note));
     card.append(head,meta,act);
-    if(stt.card.length){const g=mk('div','mlv');stt.card.forEach(([lab,v,cls,full])=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)});card.append(g)}
+    if(stt.card.length){const g=mk('div','mlv');stt.card.forEach(([lab,v,cls,full])=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),KU(s,v,cls));g.append(d)});card.append(g)}
     cfrag.append(card);
   }
   if(any){$('rows').replaceChildren(frag);$('cards').replaceChildren(cfrag)}
@@ -544,7 +548,7 @@ function detail(){
     vf.append(box)});
   $('d-views').replaceChildren(vf);
   const plans=S.pl[s][tf],b=S.bpx[s],pf=document.createDocumentFragment();
-  const item=(g,lab,v,cls,full)=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),mk('span',cls,K(s,v)));g.append(d)};
+  const item=(g,lab,v,cls,full)=>{const d=mk('div',full?'full':'');d.append(mk('span','',lab),KU(s,v,cls));g.append(d)};
   if(stt.chase){const c=stt.chase,box=mk('div','box on'),bh=mk('div','bhead');bh.append(mk('h3','','돌파 매수 (추격)'),mk('span','chip c-on',c.conf?'진행 중':'확인 대기'));box.append(bh);
     const g=mk('div','mlv');item(g,'돌파 매수가 (되돌림)',c.lvl,'buy',1);item(g,'손절',c.stop,'stop');item(g,'1차 목표',c.tgt,'sell');item(g,'원래 매수가',plans[0].buy,'muted');item(g,'2차 목표',c.tgt2,'sell');box.append(g);
     const bs=mk('div','basis');[['조건','저항을 4시간봉 종가로 돌파한 뒤, 그 자리까지 눌렸을 때만 매수'],['손절','돌파 자리 − 1 ATR (다시 아래로 마감하면 가짜 돌파)']].forEach(([k,t])=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)});box.append(bs);pf.append(box)}
@@ -553,7 +557,7 @@ function detail(){
     const tb=mk('table'),hr=mk('tr');[['단계','l'],['매수가',''],['비율',''],['체결 후 평단','']].forEach(([t,c])=>hr.append(mk('th',c,t)));const th=mk('thead');th.append(hr);tb.append(th);
     const bd=mk('tbody'),NM=['1차 매수','1차 물타기','2차 물타기'],rs=S.ratio,sum=rs.reduce((x,y)=>x+y,0)||1;
     plans.forEach((P,i)=>{const tr=mk('tr');const av=avgOf(plans.slice(0,i+1).map(p=>p.buy),rs.slice(0,i+1));const c0=mk('td','l',NM[i]);c0.append(mk('small','mst'+(i<(m.k||0)?' up':''),i<(m.k||0)?'체결':'대기'));
-      tr.append(c0,mk('td','buy',K(s,P.buy)),mk('td','',Math.round(rs[i]/sum*100)+'%'),mk('td','',K(s,av)));bd.append(tr)});
+      const tb1=mk('td','buy',K(s,P.buy));tb1.append(mk('span','sym','$'+usd(P.buy)));const tb2=mk('td','',K(s,av));tb2.append(mk('span','sym','$'+usd(av)));tr.append(c0,tb1,mk('td','',Math.round(rs[i]/sum*100)+'%'),tb2);bd.append(tr)});
     tb.append(bd);const sc=mk('div','scroll');sc.append(tb);box.append(sc);
     const fin=plans[2].s1,avAll=avgOf(plans.map(p=>p.buy),rs);
     const bs=mk('div','basis');[['최종 손절',K(s,fin)+'원 (2차 물타기 플랜의 1차 손절) · 전부 체결 후 이탈 시 평단 대비 '+pct((fin/avAll-1)*100)],['매도','가장 깊이 체결된 단계의 1차 매도가에서 절반, 그 위 단계의 1차 매도가에서 나머지'],['비율','아래 칸에서 바꿀 수 있어. 같은 금액 기준이 아니라 비율 기준 평단이야']].forEach(([k,t])=>{const d=mk('div');d.append(mk('b','',k+' '),document.createTextNode(t));bs.append(d)});box.append(bs);
